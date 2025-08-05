@@ -23,30 +23,50 @@ function SignInDialog({ openDialog, closeDialog }) {
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
-      console.log(tokenResponse);
-      const userInfo = await axios.get(
-        "https://www.googleapis.com/oauth2/v3/userinfo",
-        { headers: { Authorization: "Bearer " + tokenResponse?.access_token } }
-      );
+      try {
+        console.log(tokenResponse);
+        const userInfo = await axios.get(
+          "https://www.googleapis.com/oauth2/v3/userinfo",
+          { headers: { Authorization: "Bearer " + tokenResponse?.access_token } }
+        );
 
-      console.log(userInfo);
-      const user = userInfo.data;
-      await CreateUser({
-        name: user?.name,
-        email: user?.email,
-        picture: user?.picture,
-        uid: uuid4(),
-      });
-      if (typeof window !== undefined) {
-        localStorage.setItem("user", JSON.stringify(user));
+        console.log(userInfo);
+        const user = userInfo.data;
+        
+        // Wait for user creation to complete
+        await CreateUser({
+          name: user?.name,
+          email: user?.email,
+          picture: user?.picture,
+          uid: uuid4(),
+        });
+
+        // Ensure localStorage is available and set the user data
+        if (typeof window !== "undefined") {
+          localStorage.setItem("user", JSON.stringify(user));
+        }
+
+        // Update context
+        setUserDetail(userInfo?.data);
+        
+        // Close dialog
+        closeDialog(false);
+        
+        // Use a small delay to ensure state is updated before reload
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
+        
+      } catch (error) {
+        console.error("Login error:", error);
+        // Handle error appropriately - maybe show a toast notification
       }
-      setUserDetail(userInfo?.data);
-      closeDialog(false);
-      // Refresh the page to load chats
-      window.location.reload();
     },
-    onError: (errorResponse) => console.log(errorResponse),
+    onError: (errorResponse) => {
+      console.log("Google login error:", errorResponse);
+    },
   });
+
   return (
     <Dialog open={openDialog} onOpenChange={closeDialog}>
       <DialogContent>
@@ -62,7 +82,7 @@ function SignInDialog({ openDialog, closeDialog }) {
                 className="bg-blue-500 text-white hover:bg-blue-400 mt-3"
                 onClick={() => googleLogin()}
               >
-                Signin In With Google
+                Sign In With Google
               </Button>
               <p>{Lookup.SIGNIn_AGREEMENT_TEXT}</p>
             </div>
